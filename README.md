@@ -7,7 +7,7 @@
 [![.NET Version](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/Paol0B/Argon2id/dotnet.yml?branch=main&logo=github)](https://github.com/Paol0B/Argon2id/actions)
 [![Tests](https://img.shields.io/badge/tests-34%20passed-success?logo=github)](https://github.com/Paol0B/Argon2id/actions)
-[![Code Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen?logo=codecov)](https://github.com/Paol0B/Argon2id)
+[![Code Coverage](https://img.shields.io/badge/coverage-84%25-green?logo=codecov)](https://github.com/Paol0B/Argon2id)
 [![License](https://img.shields.io/github/license/Paol0B/Argon2id?color=blue)](LICENSE)
 [![RFC 9106](https://img.shields.io/badge/RFC-9106-orange)](https://www.rfc-editor.org/rfc/rfc9106.html)
 
