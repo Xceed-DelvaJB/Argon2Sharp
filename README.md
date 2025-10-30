@@ -111,23 +111,6 @@ dotnet run --project Argon2Sharp.Examples
 ```csharp
 using Argon2Sharp;
 
-// Hash a password with default parameters
-byte[] hash = Argon2.HashPassword("MyPassword123", out byte[] salt);
-
-// Verify password
-var parameters = Argon2Parameters.CreateDefault();
-parameters.Salt = salt;
-var argon2 = new Argon2(parameters);
-bool isValid = argon2.Verify("MyPassword123", hash);
-```
-
-## 🚀 Quick Start
-
-### Basic Password Hashing
-
-```csharp
-using Argon2Sharp;
-
 // Hash a password with default parameters (Argon2id, 19MB, 2 iterations)
 byte[] hash = Argon2.HashPassword("MyPassword123", out byte[] salt);
 
