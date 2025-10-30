@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>Paolo</Authors>
+    <Description>Pure C# implementation of Argon2 password hashing algorithm (Argon2d, Argon2i, Argon2id) based on RFC 9106</Description>
+    <PackageTags>argon2;argon2id;argon2i;argon2d;password;hashing;cryptography;security</PackageTags>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+</Project>
