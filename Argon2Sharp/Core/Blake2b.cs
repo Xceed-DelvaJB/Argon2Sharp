@@ -69,7 +69,7 @@ internal static class Blake2b
 
         // Final block
         t0 += (uint)remaining;
-        if (t0 < remaining)
+        if (t0 < (ulong)remaining)
             t1++;
 
         Span<byte> lastBlock = stackalloc byte[BlockSizeInBytes];
@@ -95,10 +95,14 @@ internal static class Blake2b
 
         if (outLen <= HashSizeInBytes)
         {
-            Hash(input, output);
+            // For short output, hash and copy what we need
+            Span<byte> fullHash = stackalloc byte[HashSizeInBytes];
+            Hash(input, fullHash);
+            fullHash.Slice(0, outLen).CopyTo(output);
             return;
         }
 
+        // For longer output, use the variable-length hash construction
         Span<byte> outLenBytes = stackalloc byte[4];
         BitConverter.TryWriteBytes(outLenBytes, (uint)outLen);
 

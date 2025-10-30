@@ -117,11 +117,11 @@ internal sealed class Argon2Engine
 
         // Generate first two blocks for each lane
         Span<byte> blockBytes = stackalloc byte[Argon2Core.BlockSize];
+        Span<byte> h0Extended = stackalloc byte[72];
         
         for (int lane = 0; lane < _parameters.Parallelism; lane++)
         {
             // Block 0
-            Span<byte> h0Extended = stackalloc byte[72];
             h0.CopyTo(h0Extended);
             WriteInt32(h0Extended.Slice(64), 0);
             WriteInt32(h0Extended.Slice(68), lane);
@@ -201,7 +201,7 @@ internal sealed class Argon2Engine
         out int refLane, out int refIndex)
     {
         // Simplified version - use pseudo-random based on position
-        ulong pseudoRand = ((ulong)pass << 32) | ((ulong)lane << 24) | ((ulong)slice << 16) | (ulong)index;
+        ulong pseudoRand = ((ulong)pass << 32) | ((ulong)lane << 24) | ((ulong)slice << 16) | (ulong)(uint)index;
         
         refLane = (int)(pseudoRand % (ulong)_parameters.Parallelism);
         
