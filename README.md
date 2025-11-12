@@ -4,7 +4,9 @@
 
 ### Pure C# Implementation of Argon2 Password Hashing Algorithm
 
-[![.NET Version](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![.NET 8.0](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![.NET 10.0](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/Paol0B/Argon2id/dotnet.yml?branch=main&logo=github)](https://github.com/Paol0B/Argon2id/actions)
 [![Tests](https://img.shields.io/badge/tests-34%20passed-success?logo=github)](https://github.com/Paol0B/Argon2id/actions)
 [![Code Coverage](https://img.shields.io/badge/coverage-84%25-green?logo=codecov)](https://github.com/Paol0B/Argon2id)
@@ -99,9 +101,10 @@ dotnet test
 dotnet run --project Argon2Sharp.Examples
 ```
 
+
 ### Requirements
 
-- .NET 9.0 SDK or later
+- .NET 8.0, 9.0, or 10.0 SDK
 - C# 12 compatible compiler
 
 ## 🚀 Quick Start
