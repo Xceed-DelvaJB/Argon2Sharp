@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/Argon2Sharp/Argon2Sharp.csproj" />
+  <Project Path="test/Argon2Sharp.Examples/Argon2Sharp.Examples.csproj" />
+  <Project Path="test/Argon2Sharp.Tests/Argon2Sharp.Tests.csproj" />
+</Solution>
