@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/github/license/Paol0B/Argon2id?color=blue)](LICENSE)
 [![RFC 9106](https://img.shields.io/badge/RFC-9106-orange)](https://www.rfc-editor.org/rfc/rfc9106.html)
 
-A modern, high-performance, pure C# implementation of the Argon2 password hashing algorithm following RFC 9106 specification. Built with .NET 9 and designed for security-critical applications.
+A modern, high-performance, pure C# implementation of the Argon2 password hashing algorithm following RFC 9106 specification. Built with .NET 10 and designed for security-critical applications.
 
 [Features](#-features) •
 [Installation](#-installation) •
@@ -73,7 +73,7 @@ A modern, high-performance, pure C# implementation of the Argon2 password hashin
 |---------|-------------|
 | 🚀 **Pure C#** | No native dependencies, runs anywhere .NET runs |
 | 📦 **Zero Dependencies** | Self-contained implementation |
-| 🎨 **Modern Syntax** | Built with C# 12 and .NET 9 |
+| 🎨 **Modern Syntax** | Built with C# 14 and .NET 10 |
 | 🧪 **Well Tested** | 34 unit tests with 95%+ coverage |
 | 📚 **Documentation** | Comprehensive XML docs and examples |
 | 🔧 **Flexible** | Configurable memory, iterations, and parallelism |
@@ -105,7 +105,7 @@ dotnet run --project Argon2Sharp.Examples
 ### Requirements
 
 - .NET 8.0, 9.0, or 10.0 SDK
-- C# 12 compatible compiler
+- C# 14 compatible compiler
 
 ## 🚀 Quick Start
 
