@@ -21,17 +21,19 @@ dotnet restore
 # Build the project
 Write-Host ""
 Write-Host "🏗️  Building in Release mode..." -ForegroundColor Yellow
-dotnet build -c Release --no-restore
+# Build solution (projects moved to src/ and test/)
+dotnet build Argon2Sharp.sln -c Release --no-restore
 
 # Run tests
 Write-Host ""
 Write-Host "🧪 Running tests..." -ForegroundColor Yellow
-dotnet test -c Release --no-build --verbosity normal
+# Run the test project now located under test/
+dotnet test ./test/Argon2Sharp.Tests/Argon2Sharp.Tests.csproj -c Release --no-build --verbosity normal
 
 # Create NuGet package
 Write-Host ""
 Write-Host "📦 Creating NuGet package..." -ForegroundColor Yellow
-dotnet pack ./Argon2Sharp/Argon2Sharp.csproj -c Release --no-build --output ./artifacts
+dotnet pack ./src/Argon2Sharp/Argon2Sharp.csproj -c Release --no-build --output ./artifacts
 
 Write-Host ""
 Write-Host "✅ Build completed successfully!" -ForegroundColor Green

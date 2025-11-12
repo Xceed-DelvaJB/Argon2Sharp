@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Argon2Sharp\Argon2Sharp.csproj" />
+    <ProjectReference Include="../../src/Argon2Sharp/Argon2Sharp.csproj" />
   </ItemGroup>
 
 </Project>
