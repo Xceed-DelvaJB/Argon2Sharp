@@ -150,19 +150,14 @@ internal sealed class Argon2Engine
 
     /// <summary>
     /// Fill memory blocks with Argon2 compression.
-    /// Supports optional parallel lane processing when MaxDegreeOfParallelism is set.
+    /// Note: Parallel lane processing is not enabled by default because Argon2's
+    /// data-dependent addressing (Argon2d/Argon2id) creates dependencies between
+    /// lanes within the same slice that require careful synchronization.
     /// </summary>
     private void FillMemoryBlocks(Span<ulong> memory)
     {
-        // Check if parallel processing is enabled
-        if (_parameters.MaxDegreeOfParallelism.HasValue && _parameters.Parallelism > 1)
-        {
-            FillMemoryBlocksParallel(memory);
-        }
-        else
-        {
-            FillMemoryBlocksSequential(memory);
-        }
+        // Sequential processing - correct for all Argon2 types
+        FillMemoryBlocksSequential(memory);
     }
 
     /// <summary>

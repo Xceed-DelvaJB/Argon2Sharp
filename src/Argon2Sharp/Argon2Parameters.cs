@@ -90,13 +90,13 @@ public sealed record Argon2Parameters
     public byte[]? AssociatedData { get; init; }
 
     /// <summary>
-    /// Maximum degree of parallelism for lane processing.
-    /// When null, uses single-threaded processing for backward compatibility.
-    /// Set to a positive value to enable parallel lane processing with Parallel.For().
+    /// Reserved for future use: Maximum degree of parallelism for lane processing.
+    /// Currently not used - sequential processing is always employed for correctness.
     /// </summary>
     /// <remarks>
-    /// Setting this to <see cref="Environment.ProcessorCount"/> or the value of <see cref="Parallelism"/>
-    /// can improve performance on multi-core systems.
+    /// This property is reserved for potential future parallel processing optimization.
+    /// Due to Argon2's data-dependent addressing creating cross-lane dependencies,
+    /// parallel lane processing requires careful synchronization not yet implemented.
     /// </remarks>
     public int? MaxDegreeOfParallelism { get; init; }
 
