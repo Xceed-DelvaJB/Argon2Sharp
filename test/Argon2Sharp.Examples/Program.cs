@@ -1,62 +1,67 @@
 using Argon2Sharp;
 using System.Text;
 
-Console.WriteLine("=== Argon2Sharp - Pure C# Argon2 Implementation ===");
+Console.WriteLine("=== Argon2Sharp v3.0 - Pure C# Argon2 Implementation ===");
 Console.WriteLine("Based on RFC 9106 Specification\n");
 
-// Example 1: Basic password hashing with default parameters
+// Example 1: Basic password hashing with tuple return (v3.0 API)
 Console.WriteLine("Example 1: Basic Password Hashing");
 Console.WriteLine("----------------------------------");
 string password = "MySecurePassword123!";
-byte[] hash = Argon2.HashPassword(password, out byte[] salt);
+var (hash, salt) = Argon2.HashPasswordWithSalt(password);
 Console.WriteLine($"Password: {password}");
 Console.WriteLine($"Salt (Base64): {Convert.ToBase64String(salt)}");
 Console.WriteLine($"Hash (Base64): {Convert.ToBase64String(hash)}");
 Console.WriteLine($"Hash Length: {hash.Length} bytes\n");
 
-// Example 2: Password verification
+// Example 2: Password verification with Span API (v3.0)
 Console.WriteLine("Example 2: Password Verification");
 Console.WriteLine("----------------------------------");
-var parameters = Argon2Parameters.CreateDefault();
-parameters.Salt = salt;
+var parameters = Argon2Parameters.CreateDefault() with { Salt = salt };
 var argon2 = new Argon2(parameters);
 
-bool isValid = argon2.Verify(password, hash);
+bool isValid = argon2.Verify(password, hash.AsSpan());
 Console.WriteLine($"Verification with correct password: {isValid}");
 
-bool isInvalid = argon2.Verify("WrongPassword", hash);
+bool isInvalid = argon2.Verify("WrongPassword", hash.AsSpan());
 Console.WriteLine($"Verification with wrong password: {isInvalid}\n");
 
-// Example 3: Using PHC string format
+// Example 3: Using PHC string format (v3.0 API)
 Console.WriteLine("Example 3: PHC String Format");
 Console.WriteLine("----------------------------------");
-string phcHash = Argon2PhcFormat.HashPassword("SecurePassword", 
-    memorySizeKB: 65536,  // 64 MB
-    iterations: 3,
-    parallelism: 4);
+string phcHash = Argon2PhcFormat.HashToPhcStringWithAutoSalt("SecurePassword");
 Console.WriteLine($"PHC Format Hash: {phcHash}");
 
-bool phcValid = Argon2PhcFormat.VerifyPassword("SecurePassword", phcHash);
-Console.WriteLine($"PHC Verification: {phcValid}\n");
+var (phcValid, extractedParams) = Argon2PhcFormat.VerifyPhcString("SecurePassword", phcHash);
+Console.WriteLine($"PHC Verification: {phcValid}");
+if (extractedParams != null)
+{
+    Console.WriteLine($"Extracted Memory: {extractedParams.MemorySizeKB} KB");
+    Console.WriteLine($"Extracted Iterations: {extractedParams.Iterations}\n");
+}
 
-// Example 4: Custom parameters (high security)
-Console.WriteLine("Example 4: High Security Parameters");
+// Example 4: Builder pattern (v3.0 API)
+Console.WriteLine("Example 4: Builder Pattern");
 Console.WriteLine("----------------------------------");
-var highSecParams = Argon2Parameters.CreateHighSecurity();
-highSecParams.Salt = Argon2.GenerateSalt(16);
-var highSecArgon2 = new Argon2(highSecParams);
+var builderParams = Argon2Parameters.CreateBuilder()
+    .WithMemorySizeKB(65536)    // 64 MB
+    .WithIterations(4)
+    .WithParallelism(4)
+    .WithRandomSalt()
+    .Build();
 
 var startTime = DateTime.Now;
-byte[] secureHash = highSecArgon2.Hash("VeryImportantPassword");
+var builderArgon2 = new Argon2(builderParams);
+byte[] secureHash = builderArgon2.Hash("VeryImportantPassword");
 var elapsedTime = (DateTime.Now - startTime).TotalMilliseconds;
 
-Console.WriteLine($"Memory: {highSecParams.MemorySizeKB} KB");
-Console.WriteLine($"Iterations: {highSecParams.Iterations}");
-Console.WriteLine($"Parallelism: {highSecParams.Parallelism}");
+Console.WriteLine($"Memory: {builderParams.MemorySizeKB} KB");
+Console.WriteLine($"Iterations: {builderParams.Iterations}");
+Console.WriteLine($"Parallelism: {builderParams.Parallelism}");
 Console.WriteLine($"Hash computed in: {elapsedTime:F2} ms");
 Console.WriteLine($"Hash (Base64): {Convert.ToBase64String(secureHash)}\n");
 
-// Example 5: Different Argon2 types
+// Example 5: Different Argon2 types with immutable records
 Console.WriteLine("Example 5: Different Argon2 Types");
 Console.WriteLine("----------------------------------");
 byte[] testSalt = Argon2.GenerateSalt(16);
@@ -83,17 +88,15 @@ Console.WriteLine();
 // Example 6: Using secret key and associated data
 Console.WriteLine("Example 6: Secret Key and Associated Data");
 Console.WriteLine("----------------------------------");
-var advancedParams = new Argon2Parameters
-{
-    Type = Argon2Type.Argon2id,
-    MemorySizeKB = 32,
-    Iterations = 3,
-    Parallelism = 4,
-    HashLength = 32,
-    Salt = Argon2.GenerateSalt(16),
-    Secret = Encoding.UTF8.GetBytes("my-application-secret-key"),
-    AssociatedData = Encoding.UTF8.GetBytes("user-context-data")
-};
+var advancedParams = Argon2Parameters.CreateBuilder()
+    .WithType(Argon2Type.Argon2id)
+    .WithMemorySizeKB(32)
+    .WithIterations(3)
+    .WithParallelism(4)
+    .WithRandomSalt()
+    .WithSecret(Encoding.UTF8.GetBytes("my-application-secret-key"))
+    .WithAssociatedData(Encoding.UTF8.GetBytes("user-context-data"))
+    .Build();
 
 var advancedArgon2 = new Argon2(advancedParams);
 byte[] advancedHash = advancedArgon2.Hash("password");
@@ -105,9 +108,9 @@ Console.WriteLine("Example 7: Performance Comparison");
 Console.WriteLine("----------------------------------");
 var testParams = new[] 
 {
-    ("Low Memory (32 KB)", new Argon2Parameters { MemorySizeKB = 32, Iterations = 3, Parallelism = 4, HashLength = 32, Salt = Argon2.GenerateSalt(16) }),
-    ("Medium Memory (1 MB)", new Argon2Parameters { MemorySizeKB = 1024, Iterations = 3, Parallelism = 4, HashLength = 32, Salt = Argon2.GenerateSalt(16) }),
-    ("High Memory (16 MB)", new Argon2Parameters { MemorySizeKB = 16384, Iterations = 3, Parallelism = 4, HashLength = 32, Salt = Argon2.GenerateSalt(16) })
+    ("Low Memory (32 KB)", Argon2Parameters.CreateBuilder().WithMemorySizeKB(32).WithIterations(3).WithParallelism(4).WithRandomSalt().Build()),
+    ("Medium Memory (1 MB)", Argon2Parameters.CreateBuilder().WithMemorySizeKB(1024).WithIterations(3).WithParallelism(4).WithRandomSalt().Build()),
+    ("High Memory (16 MB)", Argon2Parameters.CreateBuilder().WithMemorySizeKB(16384).WithIterations(3).WithParallelism(4).WithRandomSalt().Build())
 };
 
 string perfPassword = "BenchmarkPassword";
@@ -119,5 +122,15 @@ foreach (var (name, param) in testParams)
     var perfElapsed = (DateTime.Now - perfStart).TotalMilliseconds;
     Console.WriteLine($"{name}: {perfElapsed:F2} ms");
 }
+
+// Example 8: Modify parameters with 'with' expression
+Console.WriteLine("\nExample 8: Modify Parameters with 'with' Expression");
+Console.WriteLine("----------------------------------");
+var baseParams = Argon2Parameters.CreateDefault();
+Console.WriteLine($"Base Memory: {baseParams.MemorySizeKB} KB");
+
+var modifiedParams = baseParams with { MemorySizeKB = 65536, Salt = Argon2.GenerateSalt(16) };
+Console.WriteLine($"Modified Memory: {modifiedParams.MemorySizeKB} KB");
+Console.WriteLine($"Base unchanged: {baseParams.MemorySizeKB} KB (immutable!)");
 
 Console.WriteLine("\n=== Examples completed successfully! ===");
