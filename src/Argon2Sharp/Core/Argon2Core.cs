@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Argon2Sharp.Core;
 
@@ -131,23 +133,43 @@ internal static class Argon2Core
 
     /// <summary>
     /// Convert byte array to ulong array (little-endian).
+    /// Uses MemoryMarshal for zero-copy on little-endian systems.
     /// </summary>
     public static void BytesToQwords(ReadOnlySpan<byte> bytes, Span<ulong> qwords)
     {
-        for (int i = 0; i < qwords.Length; i++)
+        if (BitConverter.IsLittleEndian)
         {
-            qwords[i] = BitConverter.ToUInt64(bytes.Slice(i * 8, 8));
+            // Zero-copy cast on little-endian systems
+            MemoryMarshal.Cast<byte, ulong>(bytes).CopyTo(qwords);
+        }
+        else
+        {
+            // Fallback for big-endian systems
+            for (int i = 0; i < qwords.Length; i++)
+            {
+                qwords[i] = BinaryPrimitives.ReadUInt64LittleEndian(bytes.Slice(i * 8, 8));
+            }
         }
     }
 
     /// <summary>
     /// Convert ulong array to byte array (little-endian).
+    /// Uses MemoryMarshal for zero-copy on little-endian systems.
     /// </summary>
     public static void QwordsToBytes(ReadOnlySpan<ulong> qwords, Span<byte> bytes)
     {
-        for (int i = 0; i < qwords.Length; i++)
+        if (BitConverter.IsLittleEndian)
         {
-            BitConverter.TryWriteBytes(bytes.Slice(i * 8, 8), qwords[i]);
+            // Zero-copy cast on little-endian systems
+            MemoryMarshal.AsBytes(qwords).CopyTo(bytes);
+        }
+        else
+        {
+            // Fallback for big-endian systems
+            for (int i = 0; i < qwords.Length; i++)
+            {
+                BinaryPrimitives.WriteUInt64LittleEndian(bytes.Slice(i * 8, 8), qwords[i]);
+            }
         }
     }
 }
