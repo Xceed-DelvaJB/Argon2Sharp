@@ -93,14 +93,13 @@ public class Argon2Tests
         string password = "MySecurePassword123!";
         byte[] salt = Argon2.GenerateSalt(16);
         
-        var parameters = Argon2Parameters.CreateDefault();
-        parameters.Salt = salt;
+        var parameters = Argon2Parameters.CreateDefault() with { Salt = salt };
         
         var argon2 = new Argon2(parameters);
         byte[] hash = argon2.Hash(password);
 
         // Act
-        bool isValid = argon2.Verify(password, hash);
+        bool isValid = argon2.Verify(password, hash.AsSpan());
 
         // Assert
         Assert.True(isValid);
@@ -114,14 +113,13 @@ public class Argon2Tests
         string wrongPassword = "WrongPassword";
         byte[] salt = Argon2.GenerateSalt(16);
         
-        var parameters = Argon2Parameters.CreateDefault();
-        parameters.Salt = salt;
+        var parameters = Argon2Parameters.CreateDefault() with { Salt = salt };
         
         var argon2 = new Argon2(parameters);
         byte[] hash = argon2.Hash(password);
 
         // Act
-        bool isValid = argon2.Verify(wrongPassword, hash);
+        bool isValid = argon2.Verify(wrongPassword, hash.AsSpan());
 
         // Assert
         Assert.False(isValid);
@@ -131,7 +129,7 @@ public class Argon2Tests
     public void TestStaticHashPassword()
     {
         // Act
-        byte[] hash = Argon2.HashPassword("testpassword", out byte[] salt);
+        var (hash, salt) = Argon2.HashPasswordWithSalt("testpassword");
 
         // Assert
         Assert.NotNull(hash);
@@ -204,32 +202,32 @@ public class Argon2Tests
     public void TestParametersValidation_TooSmallMemory()
     {
         // Arrange & Act & Assert
-        var parameters = new Argon2Parameters();
-        Assert.Throws<ArgumentOutOfRangeException>(() => parameters.MemorySizeKB = 7);
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            Argon2Parameters.CreateBuilder().WithMemorySizeKB(7));
     }
 
     [Fact]
     public void TestParametersValidation_TooSmallIterations()
     {
         // Arrange & Act & Assert
-        var parameters = new Argon2Parameters();
-        Assert.Throws<ArgumentOutOfRangeException>(() => parameters.Iterations = 0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            Argon2Parameters.CreateBuilder().WithIterations(0));
     }
 
     [Fact]
     public void TestParametersValidation_InvalidParallelism()
     {
         // Arrange & Act & Assert
-        var parameters = new Argon2Parameters();
-        Assert.Throws<ArgumentOutOfRangeException>(() => parameters.Parallelism = 0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            Argon2Parameters.CreateBuilder().WithParallelism(0));
     }
 
     [Fact]
     public void TestParametersValidation_TooSmallHashLength()
     {
         // Arrange & Act & Assert
-        var parameters = new Argon2Parameters();
-        Assert.Throws<ArgumentOutOfRangeException>(() => parameters.HashLength = 3);
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            Argon2Parameters.CreateBuilder().WithHashLength(3));
     }
 
     [Fact]

@@ -1,6 +1,8 @@
 using Argon2Sharp.Core;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace Argon2Sharp.Core;
 
@@ -41,8 +43,13 @@ internal sealed class Argon2Engine
         var memory = ArrayPool<ulong>.Shared.Rent(_memoryBlocks * Argon2Core.QwordsInBlock);
         try
         {
-            var memorySpan = memory.AsSpan(0, _memoryBlocks * Argon2Core.QwordsInBlock);
+            int memoryLength = _memoryBlocks * Argon2Core.QwordsInBlock;
+            var memorySpan = memory.AsSpan(0, memoryLength);
             memorySpan.Clear();
+
+            // Store array reference for parallel processing
+            _parallelMemoryArray = memory;
+            _parallelMemoryLength = memoryLength;
 
             // Initialize memory
             Initialize(password, memorySpan);
@@ -55,8 +62,13 @@ internal sealed class Argon2Engine
         }
         finally
         {
-            // Clear sensitive data
-            memory.AsSpan(0, _memoryBlocks * Argon2Core.QwordsInBlock).Clear();
+            // Clear parallel memory reference
+            _parallelMemoryArray = null;
+            _parallelMemoryLength = 0;
+
+            // Securely clear sensitive data using CryptographicOperations
+            CryptographicOperations.ZeroMemory(
+                MemoryMarshal.AsBytes(memory.AsSpan(0, _memoryBlocks * Argon2Core.QwordsInBlock)));
             ArrayPool<ulong>.Shared.Return(memory);
         }
     }
@@ -138,8 +150,20 @@ internal sealed class Argon2Engine
 
     /// <summary>
     /// Fill memory blocks with Argon2 compression.
+    /// Note: Parallel lane processing is not enabled by default because Argon2's
+    /// data-dependent addressing (Argon2d/Argon2id) creates dependencies between
+    /// lanes within the same slice that require careful synchronization.
     /// </summary>
     private void FillMemoryBlocks(Span<ulong> memory)
+    {
+        // Sequential processing - correct for all Argon2 types
+        FillMemoryBlocksSequential(memory);
+    }
+
+    /// <summary>
+    /// Sequential memory block filling (default, backward-compatible).
+    /// </summary>
+    private void FillMemoryBlocksSequential(Span<ulong> memory)
     {
         for (int pass = 0; pass < _parameters.Iterations; pass++)
         {
@@ -151,6 +175,50 @@ internal sealed class Argon2Engine
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Parallel memory block filling for improved performance on multi-core systems.
+    /// Uses a backing array to enable parallel access with Memory&lt;T&gt;.
+    /// </summary>
+    private void FillMemoryBlocksParallel(Span<ulong> memory)
+    {
+        // Copy span data to array for parallel access (Memory<T> required for parallel)
+        // Note: The original memory buffer from ArrayPool is already an array,
+        // but we work with Span<T> for consistency. We need to use the underlying array.
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = _parameters.MaxDegreeOfParallelism!.Value
+        };
+
+        for (int pass = 0; pass < _parameters.Iterations; pass++)
+        {
+            for (int slice = 0; slice < Argon2Core.SyncPoints; slice++)
+            {
+                int currentPass = pass;
+                int currentSlice = slice;
+                
+                Parallel.For(0, _parameters.Parallelism, parallelOptions, lane =>
+                {
+                    FillSegmentParallel(currentPass, lane, currentSlice);
+                });
+            }
+        }
+    }
+
+    // Backing array for parallel processing - set during Hash() call
+    private ulong[]? _parallelMemoryArray;
+    private int _parallelMemoryLength;
+
+    /// <summary>
+    /// Fill a segment of a lane (parallel version using backing array).
+    /// </summary>
+    private void FillSegmentParallel(int pass, int lane, int slice)
+    {
+        if (_parallelMemoryArray == null) return;
+        
+        var memory = _parallelMemoryArray.AsSpan(0, _parallelMemoryLength);
+        FillSegment(memory, pass, lane, slice);
     }
 
     /// <summary>
@@ -297,12 +365,12 @@ internal sealed class Argon2Engine
 
     private static void WriteInt32(Span<byte> buffer, ref int offset, int value)
     {
-        BitConverter.TryWriteBytes(buffer.Slice(offset, 4), value);
+        BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(offset, 4), value);
         offset += 4;
     }
 
     private static void WriteInt32(Span<byte> buffer, int value)
     {
-        BitConverter.TryWriteBytes(buffer, value);
+        BinaryPrimitives.WriteInt32LittleEndian(buffer, value);
     }
 }

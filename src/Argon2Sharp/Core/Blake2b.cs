@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Argon2Sharp.Core;
 
@@ -80,9 +82,16 @@ internal static class Blake2b
         Compress(h, m, t0, t1, true);
 
         // Output hash
-        for (int i = 0; i < 8; i++)
+        if (BitConverter.IsLittleEndian)
         {
-            BitConverter.TryWriteBytes(output.Slice(i * 8, 8), h[i]);
+            MemoryMarshal.AsBytes(h).CopyTo(output);
+        }
+        else
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                BinaryPrimitives.WriteUInt64LittleEndian(output.Slice(i * 8, 8), h[i]);
+            }
         }
     }
 
@@ -104,7 +113,7 @@ internal static class Blake2b
 
         // For longer output, use the variable-length hash construction
         Span<byte> outLenBytes = stackalloc byte[4];
-        BitConverter.TryWriteBytes(outLenBytes, (uint)outLen);
+        BinaryPrimitives.WriteUInt32LittleEndian(outLenBytes, (uint)outLen);
 
         Span<byte> firstBlock = stackalloc byte[input.Length + 4];
         outLenBytes.CopyTo(firstBlock);
@@ -136,9 +145,16 @@ internal static class Blake2b
 
     private static void LoadMessage(ReadOnlySpan<byte> block, Span<ulong> m)
     {
-        for (int i = 0; i < 16; i++)
+        if (BitConverter.IsLittleEndian)
         {
-            m[i] = BitConverter.ToUInt64(block.Slice(i * 8, 8));
+            MemoryMarshal.Cast<byte, ulong>(block).CopyTo(m);
+        }
+        else
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                m[i] = BinaryPrimitives.ReadUInt64LittleEndian(block.Slice(i * 8, 8));
+            }
         }
     }
 
