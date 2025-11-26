@@ -8,7 +8,7 @@
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![.NET 10.0](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/Paol0B/Argon2id/dotnet.yml?branch=main&logo=github)](https://github.com/Paol0B/Argon2id/actions)
-[![Tests](https://img.shields.io/badge/tests-58%20passed-success?logo=github)](https://github.com/Paol0B/Argon2id/actions)
+[![Tests](https://img.shields.io/badge/tests-425%20passed-success?logo=github)](https://github.com/Paol0B/Argon2id/actions)
 [![License](https://img.shields.io/github/license/Paol0B/Argon2id?color=blue)](LICENSE)
 [![RFC 9106](https://img.shields.io/badge/RFC-9106-orange)](https://www.rfc-editor.org/rfc/rfc9106.html)
 
@@ -32,7 +32,8 @@ A modern, high-performance, pure C# implementation of the Argon2 password hashin
 - **Builder pattern** - Fluent API for parameter construction
 - **Span-based API** - Zero-allocation hot paths with `ReadOnlySpan<byte>`
 - **PHC string format** - Standard format for password hash storage
-- **BinaryPrimitives optimization** - Zero-copy on little-endian systems
+- **SIMD optimized** - AVX2 hardware acceleration for block operations
+- **Parallel lane processing** - Multi-threaded hashing for high-security workloads
 - **Secure memory cleanup** - `CryptographicOperations.ZeroMemory()` for sensitive data
 - **Multi-target** - .NET 8.0, 9.0, 10.0 support
 
@@ -175,11 +176,21 @@ bool ok = Argon2PhcFormat.TryDecode(phc, out hash, out parameters);
 
 ## ⚡ Performance
 
-| Memory | Iterations | Time | Use Case |
-|--------|-----------|------|----------|
-| 32 KB | 3 | ~10 ms | Testing only |
-| 19 MB | 2 | ~150 ms | Default (RFC recommended) |
-| 64 MB | 4 | ~800 ms | High security |
+Benchmarks on Intel Core i7-12700H (14 cores), .NET 9.0, AVX2 enabled.
+
+| Scenario | Memory | Iterations | Parallelism | Time | Speedup vs v3.0 |
+|----------|--------|------------|-------------|------|-----------------|
+| Testing | 1 MB | 1 | 1 | ~53 μs | 1.7x |
+| Default | 64 MB | 4 | 4 | ~15 ms | 1.2x |
+| High Security | 256 MB | 6 | 4 | ~51 ms | **3.0x** |
+
+### Optimizations
+
+- **SIMD/AVX2** - Hardware-accelerated block operations using `Vector<ulong>`
+- **Parallel lanes** - Multi-threaded processing for p > 1
+- **Loop unrolling** - Fully unrolled Blake2b rounds and permutations
+- **Aggressive inlining** - All hot-path functions inlined
+- **Hardware intrinsics** - Native `RotateRight` instructions
 
 ## 🧪 Testing
 
@@ -187,12 +198,14 @@ bool ok = Argon2PhcFormat.TryDecode(phc, out hash, out parameters);
 dotnet test
 ```
 
-58 unit tests covering:
+425 unit tests covering:
 - RFC 9106 test vectors
 - Edge cases and boundary conditions
 - PHC format encoding/decoding
 - Parameter validation
 - Immutability enforcement
+- Security and stress tests
+- Interoperability tests
 
 ## 📄 License
 
