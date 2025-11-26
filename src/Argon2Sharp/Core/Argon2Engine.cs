@@ -9,7 +9,7 @@ namespace Argon2Sharp.Core;
 /// <summary>
 /// Main Argon2 algorithm implementation.
 /// Implements Argon2d, Argon2i, and Argon2id as specified in RFC 9106.
-/// Highly optimized for maximum performance.
+/// Highly optimized for maximum performance with parallel lane processing.
 /// </summary>
 internal sealed class Argon2Engine
 {
@@ -23,6 +23,9 @@ internal sealed class Argon2Engine
     private readonly bool _isArgon2id;
     private readonly int _parallelism;
     private readonly int _iterations;
+    
+    // Parallel processing threshold (use threads when p > 1 and memory is large enough)
+    private const int ParallelMemoryThreshold = 16384; // 16 MB
 
     public Argon2Engine(Argon2Parameters parameters)
     {
@@ -67,8 +70,8 @@ internal sealed class Argon2Engine
             // Initialize memory
             Initialize(password, memorySpan);
 
-            // Fill memory blocks
-            FillMemoryBlocks(memorySpan);
+            // Fill memory blocks (pass array for parallel support)
+            FillMemoryBlocks(memory, totalQwords);
 
             // Finalize and produce output
             Finalize(memorySpan, output);
@@ -174,20 +177,46 @@ internal sealed class Argon2Engine
 
     /// <summary>
     /// Fill memory blocks with Argon2 compression.
+    /// Uses parallel processing when parallelism > 1 and memory is large.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private void FillMemoryBlocks(Span<ulong> memory)
+    private void FillMemoryBlocks(ulong[] memory, int totalQwords)
     {
+        // Use parallel processing for large memory with multiple lanes
+        bool useParallel = _parallelism > 1 && _memoryBlocks >= ParallelMemoryThreshold;
+
         for (int pass = 0; pass < _iterations; pass++)
         {
             for (int slice = 0; slice < Argon2Core.SyncPoints; slice++)
             {
-                for (int lane = 0; lane < _parallelism; lane++)
+                if (useParallel)
                 {
-                    FillSegment(memory, pass, lane, slice);
+                    FillSliceParallel(memory, totalQwords, pass, slice);
+                }
+                else
+                {
+                    var memorySpan = memory.AsSpan(0, totalQwords);
+                    for (int lane = 0; lane < _parallelism; lane++)
+                    {
+                        FillSegment(memorySpan, pass, lane, slice);
+                    }
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Fill all lanes of a slice in parallel using threads.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private void FillSliceParallel(ulong[] memory, int totalQwords, int pass, int slice)
+    {
+        Parallel.For(0, _parallelism, lane =>
+        {
+            // Each thread creates its own Span from the shared array
+            var memSpan = memory.AsSpan(0, totalQwords);
+            FillSegment(memSpan, pass, lane, slice);
+        });
     }
 
     /// <summary>
