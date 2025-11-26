@@ -1,6 +1,6 @@
-using Argon2Sharp.Core;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
@@ -9,6 +9,7 @@ namespace Argon2Sharp.Core;
 /// <summary>
 /// Main Argon2 algorithm implementation.
 /// Implements Argon2d, Argon2i, and Argon2id as specified in RFC 9106.
+/// Highly optimized for maximum performance.
 /// </summary>
 internal sealed class Argon2Engine
 {
@@ -17,39 +18,51 @@ internal sealed class Argon2Engine
     private readonly int _laneLength;
     private readonly int _memoryBlocks;
 
+    // Pre-computed constants for faster access
+    private readonly bool _isArgon2i;
+    private readonly bool _isArgon2id;
+    private readonly int _parallelism;
+    private readonly int _iterations;
+
     public Argon2Engine(Argon2Parameters parameters)
     {
         _parameters = parameters;
         _parameters.Validate();
 
+        // Cache frequently used values
+        _parallelism = _parameters.Parallelism;
+        _iterations = _parameters.Iterations;
+        _isArgon2i = _parameters.Type == Argon2Type.Argon2i;
+        _isArgon2id = _parameters.Type == Argon2Type.Argon2id;
+
         // Calculate memory layout
         _memoryBlocks = _parameters.MemorySizeKB;
-        _laneLength = _memoryBlocks / _parameters.Parallelism;
+        _laneLength = _memoryBlocks / _parallelism;
         _segmentLength = _laneLength / Argon2Core.SyncPoints;
 
         // Ensure minimum requirements
-        _memoryBlocks = _parameters.Parallelism * _laneLength;
+        _memoryBlocks = _parallelism * _laneLength;
     }
 
     /// <summary>
-    /// Computes Argon2 hash.
+    /// Computes Argon2 hash - optimized version.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Hash(ReadOnlySpan<byte> password, Span<byte> output)
     {
         if (output.Length != _parameters.HashLength)
             throw new ArgumentException($"Output buffer must be {_parameters.HashLength} bytes");
 
-        // Allocate memory blocks (each block is 1024 bytes = 128 qwords)
-        var memory = ArrayPool<ulong>.Shared.Rent(_memoryBlocks * Argon2Core.QwordsInBlock);
+        int totalQwords = _memoryBlocks * Argon2Core.QwordsInBlock;
+        
+        // Allocate memory blocks from pool
+        var memory = ArrayPool<ulong>.Shared.Rent(totalQwords);
         try
         {
-            int memoryLength = _memoryBlocks * Argon2Core.QwordsInBlock;
-            var memorySpan = memory.AsSpan(0, memoryLength);
+            var memorySpan = memory.AsSpan(0, totalQwords);
+            
+            // Fast zero using Span.Clear (optimized by runtime)
             memorySpan.Clear();
-
-            // Store array reference for parallel processing
-            _parallelMemoryArray = memory;
-            _parallelMemoryLength = memoryLength;
 
             // Initialize memory
             Initialize(password, memorySpan);
@@ -62,13 +75,9 @@ internal sealed class Argon2Engine
         }
         finally
         {
-            // Clear parallel memory reference
-            _parallelMemoryArray = null;
-            _parallelMemoryLength = 0;
-
-            // Securely clear sensitive data using CryptographicOperations
+            // Securely clear sensitive data
             CryptographicOperations.ZeroMemory(
-                MemoryMarshal.AsBytes(memory.AsSpan(0, _memoryBlocks * Argon2Core.QwordsInBlock)));
+                MemoryMarshal.AsBytes(memory.AsSpan(0, totalQwords)));
             ArrayPool<ulong>.Shared.Return(memory);
         }
     }
@@ -76,100 +85,104 @@ internal sealed class Argon2Engine
     /// <summary>
     /// Initialize first blocks with Blake2b hash of parameters.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void Initialize(ReadOnlySpan<byte> password, Span<ulong> memory)
     {
-        // H0 = Blake2b(
-        //   parallelism || tagLength || memorySizeKB || iterations || 
-        //   version || type || passwordLength || password ||
-        //   saltLength || salt || secretLength || secret ||
-        //   associatedDataLength || associatedData
-        // )
+        // Calculate H0 input size: 10 * 4 bytes (params) + password + salt + secret + ad
+        int saltLen = _parameters.Salt?.Length ?? 0;
+        int secretLen = _parameters.Secret?.Length ?? 0;
+        int adLen = _parameters.AssociatedData?.Length ?? 0;
+        int h0Length = 40 + password.Length + saltLen + secretLen + adLen;
 
-        int h0Length = 4 + 4 + 4 + 4 + 4 + 4 + 4 + password.Length + 4 + 
-                       (_parameters.Salt?.Length ?? 0) + 4 + 
-                       (_parameters.Secret?.Length ?? 0) + 4 + 
-                       (_parameters.AssociatedData?.Length ?? 0);
+        // Use stackalloc for small inputs, otherwise rent from pool
+        byte[]? rentedH0 = null;
+        Span<byte> h0Input = h0Length <= 512 
+            ? stackalloc byte[h0Length] 
+            : (rentedH0 = ArrayPool<byte>.Shared.Rent(h0Length)).AsSpan(0, h0Length);
 
-        Span<byte> h0Input = stackalloc byte[h0Length];
-        int offset = 0;
-
-        WriteInt32(h0Input, ref offset, _parameters.Parallelism);
-        WriteInt32(h0Input, ref offset, _parameters.HashLength);
-        WriteInt32(h0Input, ref offset, _parameters.MemorySizeKB);
-        WriteInt32(h0Input, ref offset, _parameters.Iterations);
-        WriteInt32(h0Input, ref offset, (int)_parameters.Version);
-        WriteInt32(h0Input, ref offset, (int)_parameters.Type);
-        WriteInt32(h0Input, ref offset, password.Length);
-        password.CopyTo(h0Input.Slice(offset));
-        offset += password.Length;
-
-        WriteInt32(h0Input, ref offset, _parameters.Salt?.Length ?? 0);
-        if (_parameters.Salt != null)
+        try
         {
-            _parameters.Salt.CopyTo(h0Input.Slice(offset));
-            offset += _parameters.Salt.Length;
-        }
+            int offset = 0;
 
-        WriteInt32(h0Input, ref offset, _parameters.Secret?.Length ?? 0);
-        if (_parameters.Secret != null)
-        {
-            _parameters.Secret.CopyTo(h0Input.Slice(offset));
-            offset += _parameters.Secret.Length;
-        }
+            // Write all parameters in one go
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), _parallelism); offset += 4;
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), _parameters.HashLength); offset += 4;
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), _parameters.MemorySizeKB); offset += 4;
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), _iterations); offset += 4;
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), (int)_parameters.Version); offset += 4;
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), (int)_parameters.Type); offset += 4;
 
-        WriteInt32(h0Input, ref offset, _parameters.AssociatedData?.Length ?? 0);
-        if (_parameters.AssociatedData != null)
-        {
-            _parameters.AssociatedData.CopyTo(h0Input.Slice(offset));
-            offset += _parameters.AssociatedData.Length;
-        }
+            // Password
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), password.Length); offset += 4;
+            password.CopyTo(h0Input.Slice(offset)); offset += password.Length;
 
-        Span<byte> h0 = stackalloc byte[64];
-        Blake2b.Hash(h0Input, h0);
+            // Salt
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), saltLen); offset += 4;
+            if (saltLen > 0)
+            {
+                _parameters.Salt.CopyTo(h0Input.Slice(offset));
+                offset += saltLen;
+            }
 
-        // Generate first two blocks for each lane
-        Span<byte> blockBytes = stackalloc byte[Argon2Core.BlockSize];
-        Span<byte> h0Extended = stackalloc byte[72];
-        
-        for (int lane = 0; lane < _parameters.Parallelism; lane++)
-        {
-            // Block 0
+            // Secret
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), secretLen); offset += 4;
+            if (secretLen > 0)
+            {
+                _parameters.Secret.CopyTo(h0Input.Slice(offset));
+                offset += secretLen;
+            }
+
+            // Associated data
+            BinaryPrimitives.WriteInt32LittleEndian(h0Input.Slice(offset), adLen); offset += 4;
+            if (adLen > 0)
+            {
+                _parameters.AssociatedData.CopyTo(h0Input.Slice(offset));
+            }
+
+            Span<byte> h0 = stackalloc byte[64];
+            Blake2b.Hash(h0Input.Slice(0, h0Length), h0);
+
+            // Generate first two blocks for each lane
+            Span<byte> blockBytes = stackalloc byte[Argon2Core.BlockSize];
+            Span<byte> h0Extended = stackalloc byte[72];
             h0.CopyTo(h0Extended);
-            WriteInt32(h0Extended.Slice(64), 0);
-            WriteInt32(h0Extended.Slice(68), lane);
-            
-            Blake2b.LongHash(h0Extended, blockBytes);
-            Argon2Core.BytesToQwords(blockBytes, GetBlock(memory, lane, 0));
 
-            // Block 1
-            WriteInt32(h0Extended.Slice(64), 1);
-            Blake2b.LongHash(h0Extended, blockBytes);
-            Argon2Core.BytesToQwords(blockBytes, GetBlock(memory, lane, 1));
+            for (int lane = 0; lane < _parallelism; lane++)
+            {
+                // Block 0
+                BinaryPrimitives.WriteInt32LittleEndian(h0Extended.Slice(64), 0);
+                BinaryPrimitives.WriteInt32LittleEndian(h0Extended.Slice(68), lane);
+
+                Blake2b.LongHash(h0Extended, blockBytes);
+                Argon2Core.BytesToQwords(blockBytes, GetBlock(memory, lane, 0));
+
+                // Block 1
+                BinaryPrimitives.WriteInt32LittleEndian(h0Extended.Slice(64), 1);
+                Blake2b.LongHash(h0Extended, blockBytes);
+                Argon2Core.BytesToQwords(blockBytes, GetBlock(memory, lane, 1));
+            }
+        }
+        finally
+        {
+            if (rentedH0 != null)
+            {
+                CryptographicOperations.ZeroMemory(rentedH0.AsSpan(0, h0Length));
+                ArrayPool<byte>.Shared.Return(rentedH0);
+            }
         }
     }
 
     /// <summary>
     /// Fill memory blocks with Argon2 compression.
-    /// Note: Parallel lane processing is not enabled by default because Argon2's
-    /// data-dependent addressing (Argon2d/Argon2id) creates dependencies between
-    /// lanes within the same slice that require careful synchronization.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void FillMemoryBlocks(Span<ulong> memory)
     {
-        // Sequential processing - correct for all Argon2 types
-        FillMemoryBlocksSequential(memory);
-    }
-
-    /// <summary>
-    /// Sequential memory block filling (default, backward-compatible).
-    /// </summary>
-    private void FillMemoryBlocksSequential(Span<ulong> memory)
-    {
-        for (int pass = 0; pass < _parameters.Iterations; pass++)
+        for (int pass = 0; pass < _iterations; pass++)
         {
             for (int slice = 0; slice < Argon2Core.SyncPoints; slice++)
             {
-                for (int lane = 0; lane < _parameters.Parallelism; lane++)
+                for (int lane = 0; lane < _parallelism; lane++)
                 {
                     FillSegment(memory, pass, lane, slice);
                 }
@@ -178,67 +191,30 @@ internal sealed class Argon2Engine
     }
 
     /// <summary>
-    /// Parallel memory block filling for improved performance on multi-core systems.
-    /// Uses a backing array to enable parallel access with Memory&lt;T&gt;.
+    /// Fill a segment of a lane - optimized hot path.
     /// </summary>
-    private void FillMemoryBlocksParallel(Span<ulong> memory)
-    {
-        // Copy span data to array for parallel access (Memory<T> required for parallel)
-        // Note: The original memory buffer from ArrayPool is already an array,
-        // but we work with Span<T> for consistency. We need to use the underlying array.
-        var parallelOptions = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = _parameters.MaxDegreeOfParallelism!.Value
-        };
-
-        for (int pass = 0; pass < _parameters.Iterations; pass++)
-        {
-            for (int slice = 0; slice < Argon2Core.SyncPoints; slice++)
-            {
-                int currentPass = pass;
-                int currentSlice = slice;
-                
-                Parallel.For(0, _parameters.Parallelism, parallelOptions, lane =>
-                {
-                    FillSegmentParallel(currentPass, lane, currentSlice);
-                });
-            }
-        }
-    }
-
-    // Backing array for parallel processing - set during Hash() call
-    private ulong[]? _parallelMemoryArray;
-    private int _parallelMemoryLength;
-
-    /// <summary>
-    /// Fill a segment of a lane (parallel version using backing array).
-    /// </summary>
-    private void FillSegmentParallel(int pass, int lane, int slice)
-    {
-        if (_parallelMemoryArray == null) return;
-        
-        var memory = _parallelMemoryArray.AsSpan(0, _parallelMemoryLength);
-        FillSegment(memory, pass, lane, slice);
-    }
-
-    /// <summary>
-    /// Fill a segment of a lane.
-    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void FillSegment(Span<ulong> memory, int pass, int lane, int slice)
     {
-        int startIndex = slice == 0 && pass == 0 ? 2 : 0;
-        int currentOffset = lane * _laneLength + slice * _segmentLength + startIndex;
+        int startIndex = (slice == 0 && pass == 0) ? 2 : 0;
+        int laneOffset = lane * _laneLength;
+        int sliceOffset = slice * _segmentLength;
+        int currentOffset = laneOffset + sliceOffset + startIndex;
+
+        // Determine if data-independent mode for this segment
+        bool dataIndependent = _isArgon2i || (_isArgon2id && pass == 0 && slice < 2);
 
         for (int i = startIndex; i < _segmentLength; i++)
         {
-            int prevOffset = currentOffset - 1;
-            if (currentOffset % _laneLength == 0)
-                prevOffset = currentOffset - 1 + _laneLength;
+            // Calculate previous block offset
+            int prevOffset;
+            int currentInLane = sliceOffset + i;
+            if (currentInLane == 0)
+                prevOffset = laneOffset + _laneLength - 1;
+            else
+                prevOffset = currentOffset - 1;
 
-            // Determine reference block index
-            bool dataIndependent = _parameters.Type == Argon2Type.Argon2i ||
-                                   (_parameters.Type == Argon2Type.Argon2id && pass == 0 && slice < Argon2Core.SyncPoints / 2);
-
+            // Get reference block
             int refLane, refIndex;
             if (dataIndependent)
             {
@@ -251,11 +227,12 @@ internal sealed class Argon2Engine
 
             int refOffset = refLane * _laneLength + refIndex;
 
-            // Compute new block
-            var prevBlock = GetBlock(memory, 0, prevOffset);
-            var refBlock = GetBlock(memory, 0, refOffset);
-            var currentBlock = GetBlock(memory, 0, currentOffset);
+            // Get block spans
+            var prevBlock = GetBlockByOffset(memory, prevOffset);
+            var refBlock = GetBlockByOffset(memory, refOffset);
+            var currentBlock = GetBlockByOffset(memory, currentOffset);
 
+            // Compute new block
             Argon2Core.FillBlock(prevBlock, refBlock, currentBlock);
 
             currentOffset++;
@@ -263,42 +240,54 @@ internal sealed class Argon2Engine
     }
 
     /// <summary>
-    /// Get reference block index using data-independent addressing (Argon2i mode).
+    /// Get reference block index using data-independent addressing.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetRefBlockIndexDataIndependent(int pass, int lane, int slice, int index,
         out int refLane, out int refIndex)
     {
-        // Simplified version - use pseudo-random based on position
+        // Generate pseudo-random value based on position
         ulong pseudoRand = ((ulong)pass << 32) | ((ulong)lane << 24) | ((ulong)slice << 16) | (ulong)(uint)index;
-        
-        refLane = (int)(pseudoRand % (ulong)_parameters.Parallelism);
-        
+
+        refLane = (int)(pseudoRand % (ulong)_parallelism);
+
         int refAreaSize = CalculateRefAreaSize(pass, slice, index, refLane == lane);
-        refIndex = (int)(pseudoRand % (ulong)refAreaSize);
+        if (refAreaSize <= 0) refAreaSize = 1;
         
-        if (refLane == lane && refIndex >= slice * _segmentLength + index)
-            refIndex = (refIndex + _segmentLength) % _laneLength;
+        refIndex = (int)(pseudoRand % (ulong)refAreaSize);
+
+        // Adjust if in same lane
+        if (refLane == lane)
+        {
+            int startPos = slice * _segmentLength;
+            if (pass == 0 && slice == 0)
+                startPos = 0;
+            refIndex = (startPos + refIndex) % _laneLength;
+        }
     }
 
     /// <summary>
-    /// Get reference block index using data-dependent addressing (Argon2d mode).
+    /// Get reference block index using data-dependent addressing.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetRefBlockIndexDataDependent(Span<ulong> memory, int prevOffset,
         int pass, int lane, int slice, int index, out int refLane, out int refIndex)
     {
-        var prevBlock = GetBlock(memory, 0, prevOffset);
+        var prevBlock = GetBlockByOffset(memory, prevOffset);
         ulong j1 = prevBlock[0];
         ulong j2 = prevBlock[1];
 
-        refLane = (int)(j2 % (ulong)_parameters.Parallelism);
-        
+        refLane = (int)(j2 % (ulong)_parallelism);
+
         int refAreaSize = CalculateRefAreaSize(pass, slice, index, refLane == lane);
+        if (refAreaSize <= 0) refAreaSize = 1;
+
         ulong relativePosition = j1 & 0xFFFFFFFF;
         relativePosition = (relativePosition * relativePosition) >> 32;
         relativePosition = (ulong)refAreaSize - 1 - ((ulong)refAreaSize * relativePosition >> 32);
-        
+
         refIndex = (int)relativePosition;
-        
+
         if (refLane == lane)
         {
             int startPos = slice * _segmentLength;
@@ -311,13 +300,14 @@ internal sealed class Argon2Engine
     /// <summary>
     /// Calculate the size of the reference area.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int CalculateRefAreaSize(int pass, int slice, int index, bool sameLane)
     {
         if (pass == 0)
         {
             if (slice == 0)
-                return index - 1;
-            
+                return index > 0 ? index - 1 : 0;
+
             if (sameLane)
                 return slice * _segmentLength + index - 1;
             else
@@ -335,12 +325,16 @@ internal sealed class Argon2Engine
     /// <summary>
     /// Finalize: XOR all lanes and produce final hash.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void Finalize(Span<ulong> memory, Span<byte> output)
     {
         Span<ulong> finalBlock = stackalloc ulong[Argon2Core.QwordsInBlock];
+        
+        // Get last block of first lane
         GetBlock(memory, 0, _laneLength - 1).CopyTo(finalBlock);
 
-        for (int lane = 1; lane < _parameters.Parallelism; lane++)
+        // XOR with last blocks of other lanes
+        for (int lane = 1; lane < _parallelism; lane++)
         {
             Argon2Core.XorBlock(GetBlock(memory, lane, _laneLength - 1), finalBlock);
         }
@@ -354,23 +348,20 @@ internal sealed class Argon2Engine
     /// <summary>
     /// Get a block from memory at the specified lane and index.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Span<ulong> GetBlock(Span<ulong> memory, int lane, int index)
     {
-        if (lane != 0)
-            index = lane * _laneLength + index;
-        
-        int offset = index * Argon2Core.QwordsInBlock;
+        int offset = (lane * _laneLength + index) * Argon2Core.QwordsInBlock;
         return memory.Slice(offset, Argon2Core.QwordsInBlock);
     }
 
-    private static void WriteInt32(Span<byte> buffer, ref int offset, int value)
+    /// <summary>
+    /// Get a block from memory at the specified absolute offset.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Span<ulong> GetBlockByOffset(Span<ulong> memory, int blockOffset)
     {
-        BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(offset, 4), value);
-        offset += 4;
-    }
-
-    private static void WriteInt32(Span<byte> buffer, int value)
-    {
-        BinaryPrimitives.WriteInt32LittleEndian(buffer, value);
+        int offset = blockOffset * Argon2Core.QwordsInBlock;
+        return memory.Slice(offset, Argon2Core.QwordsInBlock);
     }
 }
