@@ -1,5 +1,11 @@
 <Solution>
-  <Project Path="src/Argon2Sharp/Argon2Sharp.csproj" />
-  <Project Path="test/Argon2Sharp.Examples/Argon2Sharp.Examples.csproj" />
-  <Project Path="test/Argon2Sharp.Tests/Argon2Sharp.Tests.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/Argon2Sharp/Argon2Sharp.csproj" />
+    <Project Path="src/Argon2Sharp.AspNetCore/Argon2Sharp.AspNetCore.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Argon2Sharp.Examples/Argon2Sharp.Examples.csproj" />
+    <Project Path="test/Argon2Sharp.Tests/Argon2Sharp.Tests.csproj" />
+    <Project Path="test/Argon2Sharp.Benchmarks/Argon2Sharp.Benchmarks.csproj" />
+  </Folder>
 </Solution>

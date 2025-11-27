@@ -53,8 +53,34 @@ internal sealed class Argon2Engine
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Hash(ReadOnlySpan<byte> password, Span<byte> output)
     {
+        HashInternal(password, output, progress: null, cancellationToken: default);
+    }
+
+    /// <summary>
+    /// Computes Argon2 hash with progress reporting and cancellation support.
+    /// </summary>
+    /// <param name="password">Password bytes to hash.</param>
+    /// <param name="output">Output buffer for the hash.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public void HashWithProgress(ReadOnlySpan<byte> password, Span<byte> output, IProgress<double>? progress, CancellationToken cancellationToken = default)
+    {
+        HashInternal(password, output, progress, cancellationToken);
+    }
+
+    /// <summary>
+    /// Internal hash implementation with optional progress and cancellation.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private void HashInternal(ReadOnlySpan<byte> password, Span<byte> output, IProgress<double>? progress, CancellationToken cancellationToken)
+    {
         if (output.Length != _parameters.HashLength)
+        {
             throw new ArgumentException($"Output buffer must be {_parameters.HashLength} bytes");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         int totalQwords = _memoryBlocks * Argon2Core.QwordsInBlock;
         
@@ -67,14 +93,19 @@ internal sealed class Argon2Engine
             // Fast zero using Span.Clear (optimized by runtime)
             memorySpan.Clear();
 
+            progress?.Report(0.0);
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Initialize memory
             Initialize(password, memorySpan);
+            progress?.Report(0.05);
 
-            // Fill memory blocks (pass array for parallel support)
-            FillMemoryBlocks(memory, totalQwords);
+            // Fill memory blocks with progress reporting
+            FillMemoryBlocksWithProgress(memory, totalQwords, progress, cancellationToken);
 
             // Finalize and produce output
             Finalize(memorySpan, output);
+            progress?.Report(1.0);
         }
         finally
         {
@@ -182,13 +213,27 @@ internal sealed class Argon2Engine
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void FillMemoryBlocks(ulong[] memory, int totalQwords)
     {
+        FillMemoryBlocksWithProgress(memory, totalQwords, progress: null, cancellationToken: default);
+    }
+
+    /// <summary>
+    /// Fill memory blocks with progress reporting and cancellation support.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private void FillMemoryBlocksWithProgress(ulong[] memory, int totalQwords, IProgress<double>? progress, CancellationToken cancellationToken)
+    {
         // Use parallel processing for large memory with multiple lanes
         bool useParallel = _parallelism > 1 && _memoryBlocks >= ParallelMemoryThreshold;
+        
+        int totalSteps = _iterations * Argon2Core.SyncPoints;
+        int currentStep = 0;
 
         for (int pass = 0; pass < _iterations; pass++)
         {
             for (int slice = 0; slice < Argon2Core.SyncPoints; slice++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 if (useParallel)
                 {
                     FillSliceParallel(memory, totalQwords, pass, slice);
@@ -201,6 +246,10 @@ internal sealed class Argon2Engine
                         FillSegment(memorySpan, pass, lane, slice);
                     }
                 }
+                
+                currentStep++;
+                // Progress: 5% init + 90% filling + 5% finalize
+                progress?.Report(0.05 + (0.90 * currentStep / totalSteps));
             }
         }
     }
