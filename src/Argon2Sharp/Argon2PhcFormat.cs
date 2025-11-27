@@ -126,8 +126,12 @@ public static class Argon2PhcFormat
             "argon2d" => Argon2Type.Argon2d,
             "argon2i" => Argon2Type.Argon2i,
             "argon2id" => Argon2Type.Argon2id,
-            _ => throw new FormatException($"Unknown Argon2 type: {parts[0]}")
+            _ => (Argon2Type)(-1) // Invalid type marker
         };
+
+        // Return false for invalid type
+        if ((int)type == -1)
+            return false;
 
         // Parse version
         if (parts[1].StartsWith("v="))
