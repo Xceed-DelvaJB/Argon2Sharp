@@ -7,13 +7,6 @@
     <Description>Pure C# implementation of Argon2 password hashing algorithm (Argon2d, Argon2i, Argon2id) based on RFC 9106</Description>
     <PackageTags>argon2;argon2id;argon2i;argon2d;password;hashing;cryptography;security;rfc9106;blake2b</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageId>Argon2Sharp</PackageId>
-    <Version>3.5.0</Version>
-    <Authors>Paol0B</Authors>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/Paol0B/Argon2Sharp</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
