@@ -238,12 +238,10 @@ public sealed class Argon2KeyDerivation : IArgon2KeyDerivation
             throw new ArgumentException("Key length must be at least 4 bytes", nameof(keyLength));
         }
         
-        if (keyLength > 1024)
-        {
-            throw new ArgumentException("Key length should not exceed 1024 bytes for practical use", nameof(keyLength));
-        }
+        // Removed artificial upper limit on key length.
+        // Argon2 supports output lengths up to 2^32 - 1 bytes (RFC 9106).
+        // If needed, enforce limits based on system resources or make configurable.
     }
-
     #endregion
 }
 
