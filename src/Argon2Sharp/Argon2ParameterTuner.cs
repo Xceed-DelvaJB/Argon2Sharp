@@ -274,13 +274,14 @@ public sealed class Argon2ParameterTuner : IArgon2ParameterTuner
     private static TimeSpan MeasureHashTime(Argon2Parameters parameters)
     {
         var argon2 = new Argon2(parameters);
+        byte[] output = new byte[parameters.HashLength];
         
         // Warm-up run
-        _ = argon2.Hash(TestPassword);
+        argon2.Hash(TestPassword, output);
         
         // Timed run
         var sw = Stopwatch.StartNew();
-        _ = argon2.Hash(TestPassword);
+        argon2.Hash(TestPassword, output);
         sw.Stop();
         
         return sw.Elapsed;
