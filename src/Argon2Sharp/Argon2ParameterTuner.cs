@@ -51,7 +51,6 @@ public sealed class Argon2ParameterTuner : IArgon2ParameterTuner
         int maxMemoryKB = Math.Min(maxMemoryMB * 1024, MaxMemoryKB);
         
         // Start with minimum viable parameters
-        int memoryKB = Math.Max(MinMemoryKB, 8 * parallelism);
         int iterations = MinIterations;
         
         var salt = Argon2.GenerateSalt(16);
