@@ -75,7 +75,15 @@ public sealed class Argon2AsyncHasher : IArgon2AsyncHasher
     public byte[] Hash(string password)
     {
         ArgumentNullException.ThrowIfNull(password);
-        return Hash(Encoding.UTF8.GetBytes(password).AsSpan());
+        byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+        try
+        {
+            return Hash(passwordBytes.AsSpan());
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(passwordBytes);
+        }
     }
 
     /// <inheritdoc />
