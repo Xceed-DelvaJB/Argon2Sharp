@@ -143,8 +143,16 @@ public sealed class Argon2KeyDerivation : IArgon2KeyDerivation
         
         var engine = new Argon2Engine(actualParams);
         byte[] output = new byte[keyLength];
-        engine.Hash(Encoding.UTF8.GetBytes(password).AsSpan(), output);
-        return output;
+        byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+        try
+        {
+            engine.Hash(passwordBytes.AsSpan(), output);
+            return output;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(passwordBytes);
+        }
     }
 
     /// <summary>
