@@ -256,19 +256,28 @@ public sealed class Argon2ParameterTuner : IArgon2ParameterTuner
         int estimatedIterations = Math.Max(1, (int)(targetTime.TotalMilliseconds / timePerIteration));
         estimatedIterations = Math.Min(estimatedIterations, MaxIterations);
         
-        // Fine-tune
+        // Fine-tune: find the iteration count that gets closest to the target time
+        int bestIterations = estimatedIterations;
+        double bestDiff = double.MaxValue;
         for (iterations = estimatedIterations; iterations <= MaxIterations; iterations++)
         {
             testParams = testParams with { Iterations = iterations };
             elapsed = MeasureHashTime(testParams);
-            
-            if (elapsed >= targetTime * 0.9) // Within 10% of target
+
+            double diff = Math.Abs(elapsed.TotalMilliseconds - targetTime.TotalMilliseconds);
+            if (diff < bestDiff)
+            {
+                bestIterations = iterations;
+                bestDiff = diff;
+            }
+
+            if (elapsed.TotalMilliseconds > targetTime.TotalMilliseconds * 1.1) // Stop if we exceed target by 10%
             {
                 break;
             }
         }
-        
-        return Math.Min(iterations, MaxIterations);
+
+        return Math.Min(bestIterations, MaxIterations);
     }
 
     private static TimeSpan MeasureHashTime(Argon2Parameters parameters)
