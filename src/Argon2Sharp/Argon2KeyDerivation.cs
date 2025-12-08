@@ -191,6 +191,7 @@ public sealed class Argon2KeyDerivation : IArgon2KeyDerivation
                 contextSalt = new byte[salt.Length + contextBytes.Length];
                 salt.CopyTo(contextSalt, 0);
                 contextBytes.CopyTo(contextSalt, salt.Length);
+                CryptographicOperations.ZeroMemory(contextBytes);
             }
             else
             {
