@@ -320,12 +320,12 @@ internal static class Blake2b
     private static void GInline(ref ulong a, ref ulong b, ref ulong c, ref ulong d, ulong x, ulong y)
     {
         a += b + x;
-        d = ulong.RotateRight(d ^ a, 32);
+        d = DotNet5Compatibility.ULong.RotateRight(d ^ a, 32);
         c += d;
-        b = ulong.RotateRight(b ^ c, 24);
+        b = DotNet5Compatibility.ULong.RotateRight(b ^ c, 24);
         a += b + y;
-        d = ulong.RotateRight(d ^ a, 16);
+        d = DotNet5Compatibility.ULong.RotateRight(d ^ a, 16);
         c += d;
-        b = ulong.RotateRight(b ^ c, 63);
+        b = DotNet5Compatibility.ULong.RotateRight(b ^ c, 63);
     }
 }

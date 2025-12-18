@@ -37,7 +37,7 @@ public sealed class Argon2
     /// <exception cref="ArgumentNullException">Thrown when parameters is null.</exception>
     public Argon2(Argon2Parameters parameters)
     {
-        _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
+        _parameters = parameters ?? throw new System.ArgumentNullException(nameof(parameters));
     }
 
     #region Primary Span-based API
@@ -102,7 +102,7 @@ public sealed class Argon2
     /// <exception cref="ArgumentNullException">Thrown when password is null.</exception>
     public byte[] Hash(string password)
     {
-        ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
         return Hash(Encoding.UTF8.GetBytes(password).AsSpan());
     }
 
@@ -116,7 +116,7 @@ public sealed class Argon2
     /// <exception cref="ArgumentNullException">Thrown when password is null.</exception>
     public bool Verify(string password, ReadOnlySpan<byte> hash)
     {
-        ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
         return Verify(Encoding.UTF8.GetBytes(password).AsSpan(), hash);
     }
 
@@ -133,7 +133,7 @@ public sealed class Argon2
     [Obsolete("Use Hash(ReadOnlySpan<byte>) instead for better performance. This method will be removed in v4.0.")]
     public byte[] Hash(byte[] password)
     {
-        ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
         return Hash(password.AsSpan());
     }
 
@@ -148,8 +148,8 @@ public sealed class Argon2
     [Obsolete("Use Verify(string, ReadOnlySpan<byte>) instead. This method will be removed in v4.0.")]
     public bool Verify(string password, byte[] hash)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(hash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(hash);
         return Verify(Encoding.UTF8.GetBytes(password).AsSpan(), hash.AsSpan());
     }
 
@@ -164,8 +164,8 @@ public sealed class Argon2
     [Obsolete("Use Verify(ReadOnlySpan<byte>, ReadOnlySpan<byte>) instead. This method will be removed in v4.0.")]
     public bool Verify(byte[] password, byte[] hash)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(hash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(hash);
         return Verify(password.AsSpan(), hash.AsSpan());
     }
 
@@ -182,7 +182,7 @@ public sealed class Argon2
     /// <exception cref="ArgumentNullException">Thrown when password is null.</exception>
     public static (byte[] Hash, byte[] Salt) HashPasswordWithSalt(string password, Argon2Parameters? parameters = null)
     {
-        ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
         
         var salt = GenerateSalt(16);
         var p = (parameters ?? Argon2Parameters.CreateDefault()) with { Salt = salt };
@@ -231,8 +231,8 @@ public sealed class Argon2
         int hashLength = 32,
         Argon2Type type = Argon2Type.Argon2id)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(salt);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(salt);
 
         var parameters = new Argon2Parameters
         {
@@ -270,9 +270,9 @@ public sealed class Argon2
         int parallelism = 1,
         Argon2Type type = Argon2Type.Argon2id)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(hash);
-        ArgumentNullException.ThrowIfNull(salt);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(hash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(salt);
 
         var parameters = new Argon2Parameters
         {
@@ -299,7 +299,12 @@ public sealed class Argon2
         if (length < 8)
             throw new ArgumentException("Salt length must be at least 8 bytes", nameof(length));
 
-        return RandomNumberGenerator.GetBytes(length);
+        byte[] salt = new byte[ length ];
+        using (RandomNumberGenerator random = RandomNumberGenerator.Create())
+        {
+            random.GetBytes(salt);
+        }
+        return salt;
     }
 
     /// <summary>
@@ -310,7 +315,7 @@ public sealed class Argon2
     /// <exception cref="ArgumentNullException">Thrown when hash is null.</exception>
     public static string ToBase64(byte[] hash)
     {
-        ArgumentNullException.ThrowIfNull(hash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(hash);
         return Convert.ToBase64String(hash);
     }
 
@@ -323,7 +328,7 @@ public sealed class Argon2
     /// <exception cref="FormatException">Thrown when base64Hash is not valid Base64.</exception>
     public static byte[] FromBase64(string base64Hash)
     {
-        ArgumentNullException.ThrowIfNull(base64Hash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(base64Hash);
         return Convert.FromBase64String(base64Hash);
     }
 

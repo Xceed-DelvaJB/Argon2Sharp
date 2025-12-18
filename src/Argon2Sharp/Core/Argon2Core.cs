@@ -30,13 +30,13 @@ internal static class Argon2Core
 
         // Fused multiply-add operations with inline multiplication
         va += vb + ((va & 0xFFFFFFFFUL) * (vb & 0xFFFFFFFFUL) << 1);
-        vd = ulong.RotateRight(vd ^ va, 32);
+        vd = DotNet5Compatibility.ULong.RotateRight(vd ^ va, 32);
         vc += vd + ((vc & 0xFFFFFFFFUL) * (vd & 0xFFFFFFFFUL) << 1);
-        vb = ulong.RotateRight(vb ^ vc, 24);
+        vb = DotNet5Compatibility.ULong.RotateRight(vb ^ vc, 24);
         va += vb + ((va & 0xFFFFFFFFUL) * (vb & 0xFFFFFFFFUL) << 1);
-        vd = ulong.RotateRight(vd ^ va, 16);
+        vd = DotNet5Compatibility.ULong.RotateRight(vd ^ va, 16);
         vc += vd + ((vc & 0xFFFFFFFFUL) * (vd & 0xFFFFFFFFUL) << 1);
-        vb = ulong.RotateRight(vb ^ vc, 63);
+        vb = DotNet5Compatibility.ULong.RotateRight(vb ^ vc, 63);
 
         block[a] = va;
         block[b] = vb;

@@ -321,7 +321,7 @@ public sealed record Argon2Parameters
         /// <exception cref="ArgumentException">Thrown when salt is less than 8 bytes.</exception>
         public Builder WithSalt(byte[] salt)
         {
-            ArgumentNullException.ThrowIfNull(salt);
+            DotNet5Compatibility.ArgumentNullException.ThrowIfNull(salt);
             if (salt.Length < 8)
                 throw new ArgumentException("Salt must be at least 8 bytes", nameof(salt));
             _salt = (byte[])salt.Clone();
@@ -338,7 +338,12 @@ public sealed record Argon2Parameters
         {
             if (length < 8)
                 throw new ArgumentException("Salt length must be at least 8 bytes", nameof(length));
-            _salt = RandomNumberGenerator.GetBytes(length);
+
+            _salt = new byte[ length ];
+            using (RandomNumberGenerator random = RandomNumberGenerator.Create())
+            {
+                random.GetBytes(_salt);
+            }
             return this;
         }
 

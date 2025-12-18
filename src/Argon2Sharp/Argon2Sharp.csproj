@@ -1,17 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>net5.0</TargetFrameworks>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Pure C# implementation of Argon2 password hashing algorithm (Argon2d, Argon2i, Argon2id) based on RFC 9106</Description>
     <PackageTags>argon2;argon2id;argon2i;argon2d;password;hashing;cryptography;security;rfc9106;blake2b</PackageTags>
-    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="/" />
-    <None Include="../../icon.png" Pack="true" PackagePath="/" />
-  </ItemGroup>
 
 </Project>

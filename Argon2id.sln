@@ -4,15 +4,7 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{0C88DD14-F956-CE84-757C-A364CCF449FC}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Argon2Sharp", "src\Argon2Sharp\Argon2Sharp.csproj", "{A40003A3-DF68-0554-137C-2D853E3C8C9D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Argon2Sharp.Examples", "test\Argon2Sharp.Examples\Argon2Sharp.Examples.csproj", "{2FAE7A6A-5423-3F43-A6D7-2D9A0585CB83}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Argon2Sharp.Tests", "test\Argon2Sharp.Tests\Argon2Sharp.Tests.csproj", "{D09ADE7A-252D-6AA2-604F-BCE9D7D5FF00}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Argon2Sharp.Benchmarks", "test\Argon2Sharp.Benchmarks\Argon2Sharp.Benchmarks.csproj", "{4C61DAF3-9D66-D278-2754-C395F13CF8F9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,27 +16,12 @@ Global
 		{A40003A3-DF68-0554-137C-2D853E3C8C9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A40003A3-DF68-0554-137C-2D853E3C8C9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A40003A3-DF68-0554-137C-2D853E3C8C9D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2FAE7A6A-5423-3F43-A6D7-2D9A0585CB83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2FAE7A6A-5423-3F43-A6D7-2D9A0585CB83}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2FAE7A6A-5423-3F43-A6D7-2D9A0585CB83}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2FAE7A6A-5423-3F43-A6D7-2D9A0585CB83}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D09ADE7A-252D-6AA2-604F-BCE9D7D5FF00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D09ADE7A-252D-6AA2-604F-BCE9D7D5FF00}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D09ADE7A-252D-6AA2-604F-BCE9D7D5FF00}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D09ADE7A-252D-6AA2-604F-BCE9D7D5FF00}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4C61DAF3-9D66-D278-2754-C395F13CF8F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4C61DAF3-9D66-D278-2754-C395F13CF8F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4C61DAF3-9D66-D278-2754-C395F13CF8F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4C61DAF3-9D66-D278-2754-C395F13CF8F9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A40003A3-DF68-0554-137C-2D853E3C8C9D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{2FAE7A6A-5423-3F43-A6D7-2D9A0585CB83} = {0C88DD14-F956-CE84-757C-A364CCF449FC}
-		{D09ADE7A-252D-6AA2-604F-BCE9D7D5FF00} = {0C88DD14-F956-CE84-757C-A364CCF449FC}
-		{4C61DAF3-9D66-D278-2754-C395F13CF8F9} = {0C88DD14-F956-CE84-757C-A364CCF449FC}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {45217CA6-1814-4E46-A702-258E28292CDC}

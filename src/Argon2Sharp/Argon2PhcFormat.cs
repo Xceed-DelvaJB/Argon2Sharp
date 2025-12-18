@@ -1,5 +1,7 @@
 using System.Text;
 
+using DotNet5Compatibility;
+
 namespace Argon2Sharp;
 
 /// <summary>
@@ -45,8 +47,8 @@ public static class Argon2PhcFormat
         int parallelism,
         Argon2Version version = Argon2Version.Version13)
     {
-        ArgumentNullException.ThrowIfNull(hash);
-        ArgumentNullException.ThrowIfNull(salt);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(hash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(salt);
 
         string typeStr = type switch
         {
@@ -73,8 +75,8 @@ public static class Argon2PhcFormat
     /// <exception cref="ArgumentException">Thrown when parameters.Salt is null.</exception>
     public static string Encode(byte[] hash, Argon2Parameters parameters)
     {
-        ArgumentNullException.ThrowIfNull(hash);
-        ArgumentNullException.ThrowIfNull(parameters);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(hash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(parameters);
         
         if (parameters.Salt == null)
             throw new ArgumentException("Parameters must include salt", nameof(parameters));
@@ -251,8 +253,8 @@ public static class Argon2PhcFormat
     /// <exception cref="ArgumentException">Thrown when parameters.Salt is null.</exception>
     public static string HashToPhcString(string password, Argon2Parameters parameters)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(parameters);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(parameters);
         
         if (parameters.Salt == null)
             throw new ArgumentException("Parameters must include salt", nameof(parameters));
@@ -273,7 +275,7 @@ public static class Argon2PhcFormat
     /// <exception cref="ArgumentNullException">Thrown when password is null.</exception>
     public static string HashToPhcStringWithAutoSalt(string password, Argon2Parameters? parameters = null, int saltLength = 16)
     {
-        ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
         
         var salt = Argon2.GenerateSalt(saltLength);
         var p = (parameters ?? Argon2Parameters.CreateDefault()) with { Salt = salt };
@@ -290,8 +292,8 @@ public static class Argon2PhcFormat
     /// <exception cref="ArgumentNullException">Thrown when password or phcString is null.</exception>
     public static (bool IsValid, Argon2Parameters? Parameters) VerifyPhcString(string password, string phcString)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(phcString);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(phcString);
 
         if (!TryDecode(phcString, out byte[]? hash, out Argon2Parameters? parameters))
         {
@@ -327,7 +329,7 @@ public static class Argon2PhcFormat
         int hashLength = 32,
         Argon2Type type = Argon2Type.Argon2id)
     {
-        ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
 
         byte[] salt = Argon2.GenerateSalt(16);
         
@@ -357,8 +359,8 @@ public static class Argon2PhcFormat
     [Obsolete("Use VerifyPhcString(string, string) which returns a tuple with parameters. This method will be removed in v4.0.")]
     public static bool VerifyPassword(string password, string phcHash)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(phcHash);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(password);
+        DotNet5Compatibility.ArgumentNullException.ThrowIfNull(phcHash);
 
         var (isValid, _) = VerifyPhcString(password, phcHash);
         return isValid;
